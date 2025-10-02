@@ -1,0 +1,11 @@
+plugins {
+    id 'application'
+    id 'org.openjfx.javafxplugin' version '0.1.0'  // if this fails, try 0.0.14
+}
+repositories { mavenCentral() }
+dependencies { implementation 'org.xerial:sqlite-jdbc:3.46.0.0' }
+javafx {
+    version = '23.0.1'
+    modules = [ 'javafx.controls', 'javafx.media' ]
+}
+application { mainClass = 'videocutter.app.Main' }

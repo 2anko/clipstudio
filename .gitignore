@@ -1,0 +1,20 @@
+# Gradle
+.gradle/
+build/
+
+# IntelliJ IDEA
+.idea/
+*.iml
+out/
+
+# OS / logs
+.DS_Store
+Thumbs.db
+*.log
+
+# App data (keep repo small)
+videos.db
+media/
+
+# Java
+*.class
