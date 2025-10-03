@@ -51,6 +51,7 @@ public class PreviewPane {
                 mediaPlayer.setStopTime(Duration.millis(endMs));
                 mediaPlayer.seek(Duration.millis(startMs));
             }
+            trimBar.setPlayhead(startMs);
         });
     }
 
@@ -64,21 +65,25 @@ public class PreviewPane {
             long durMs = (long) media.getDuration().toMillis();
 
             trimBar.setBounds(0, durMs);
-            // Clamp incoming values to media duration just in case
             long s = Math.max(0, Math.min(startMs, durMs));
             long e = Math.max(s + 100, Math.min(endMs, durMs));
-
             trimBar.setValues(s, e);
 
-            // 🔒 Constrain preview to the trimmed window
             mediaPlayer.setStartTime(Duration.millis(s));
             mediaPlayer.setStopTime(Duration.millis(e));
             mediaPlayer.seek(Duration.millis(s));
 
-            // ⏹ When reaching end trim, pause and rest at end
+            trimBar.setPlayhead(s);  // ⬅️ start at the left handle
+
+            // live updates: move playhead as the video plays
+            mediaPlayer.currentTimeProperty().addListener((obs, oldT, newT) -> {
+                trimBar.setPlayhead((long) newT.toMillis());
+            });
+
             mediaPlayer.setOnEndOfMedia(() -> {
                 mediaPlayer.pause();
                 mediaPlayer.seek(mediaPlayer.getStopTime());
+                trimBar.setPlayhead((long) mediaPlayer.getStopTime().toMillis());  // park at end handle
             });
         });
     }

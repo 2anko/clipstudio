@@ -20,6 +20,8 @@ public class RangeTrimBar extends Pane {
     private long min = 0, max = 10_000;
     private final LongProperty startMs = new SimpleLongProperty(0);
     private final LongProperty endMs   = new SimpleLongProperty(10_000);
+    private final Rectangle playhead = new Rectangle(2, 28);  // live position indicator
+    private final LongProperty playheadMs = new SimpleLongProperty(0);
 
     // keep at least this many ms between thumbs
     private static final long MIN_SPAN_MS = 100; // tweak if you like
@@ -107,6 +109,11 @@ public class RangeTrimBar extends Pane {
             if (handler != null) handler.onChange(startMs.get(), endMs.get());
             e.consume();
         });
+
+        playhead.setFill(Color.web("#000000CC")); // CC ≈ 80% opacity
+        playhead.setMouseTransparent(true);         // don’t steal drag events
+        // make sure z-order puts playhead above the fill but below/above thumbs as you prefer:
+        getChildren().setAll(track, fill, playhead, left, right);
     }
 
     // ---------------- API ----------------
@@ -120,6 +127,15 @@ public class RangeTrimBar extends Pane {
         }
         requestLayout();
     }
+
+    public void setPlayhead(long ms) {
+        long clamped = clamp(ms, min, max);
+        if (clamped != playheadMs.get()) {
+            playheadMs.set(clamped);
+            layoutPlayheadOnly();   // fast path; no full relayout needed
+        }
+    }
+    public long getPlayhead() { return playheadMs.get(); }
 
     public void setValues(long start, long end) {
         startMs.set(clamp(start, min, max - MIN_SPAN_MS));
@@ -154,6 +170,11 @@ public class RangeTrimBar extends Pane {
         fill.setLayoutX(lx);
         fill.setLayoutY(y);
         fill.setWidth(Math.max(2, rx - lx));
+
+        // ⬇️ playhead placement
+        double px = valueToPixel(playheadMs.get());
+        playhead.setLayoutX(px - playhead.getWidth()/2);
+        playhead.setLayoutY(y - 11);
     }
 
     // ---------------- Helpers ----------------
@@ -182,4 +203,11 @@ public class RangeTrimBar extends Pane {
     private static long clamp(long v, long lo, long hi) { return Math.max(lo, Math.min(hi, v)); }
 
     private double thumbCenterX(Rectangle r) { return r.getLayoutX() + r.getWidth()/2; }
+
+    private void layoutPlayheadOnly() {
+        double y = getPadding().getTop() + 12;
+        double px = valueToPixel(playheadMs.get());
+        playhead.setLayoutX(px - playhead.getWidth()/2);
+        playhead.setLayoutY(y - 11);
+    }
 }
