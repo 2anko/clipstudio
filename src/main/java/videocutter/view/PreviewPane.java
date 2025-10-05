@@ -53,6 +53,18 @@ public class PreviewPane {
             }
             trimBar.setPlayhead(startMs);
         });
+
+        trimBar.setOnSeek(ms -> {
+            if (mediaPlayer == null) return;
+
+            long s = trimBar.getStartMs();
+            long e = trimBar.getEndMs();
+            long target = Math.max(s, Math.min(ms, e)); // stay within the current trim window
+
+            mediaPlayer.pause();
+            mediaPlayer.seek(javafx.util.Duration.millis(target));
+            trimBar.setPlayhead(target);
+        });
     }
 
     public void loadVideo(File tempFile, long startMs, long endMs) {

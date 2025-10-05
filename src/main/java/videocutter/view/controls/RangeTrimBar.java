@@ -110,6 +110,16 @@ public class RangeTrimBar extends Pane {
             e.consume();
         });
 
+        addEventHandler(MouseEvent.MOUSE_PRESSED, e -> {
+            if (e.getButton() == MouseButton.SECONDARY && active == Thumb.NONE) {
+                double x = clamp(toLocalX(e), padLeft(), getWidth() - padRight());
+                long v = pixelToValue(x);
+                setPlayhead(v);                   // move the black playhead
+                if (seekHandler != null) seekHandler.onSeek(v); // tell listeners to seek
+                e.consume();
+            }
+        });
+
         playhead.setFill(Color.web("#000000CC")); // CC ≈ 80% opacity
         playhead.setMouseTransparent(true);         // don’t steal drag events
         // make sure z-order puts playhead above the fill but below/above thumbs as you prefer:
@@ -147,6 +157,10 @@ public class RangeTrimBar extends Pane {
     public long getEndMs()   { return endMs.get(); }
 
     public void setOnChanged(ChangeHandler h) { this.handler = h; }
+
+    public interface SeekHandler { void onSeek(long ms); }
+    private SeekHandler seekHandler;
+    public void setOnSeek(SeekHandler h) { this.seekHandler = h; }
 
     // ---------------- Layout ----------------
     @Override protected void layoutChildren() {
