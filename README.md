@@ -22,5 +22,6 @@ https://github.com/2anko/clipstudio
 
 ## Screenshots
 
-Add screenshots to `docs/` and link them here:
+![img.png](img.png)
+![img_1.png](img_1.png)
 

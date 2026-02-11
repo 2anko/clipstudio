@@ -1,106 +1,176 @@
 package videocutter.view;
 
 import javafx.geometry.Insets;
+import javafx.geometry.Pos;
 import javafx.scene.control.Button;
 import javafx.scene.control.Label;
-import javafx.scene.layout.BorderPane;
-import javafx.scene.layout.HBox;
+import javafx.scene.control.Slider;
+import javafx.scene.layout.*;
 import javafx.scene.media.Media;
 import javafx.scene.media.MediaPlayer;
 import javafx.scene.media.MediaView;
 import javafx.util.Duration;
-import videocutter.view.controls.RangeTrimBar;
 
 import java.io.File;
 
 public class PreviewPane {
     private final BorderPane root = new BorderPane();
+
     private final MediaView mediaView = new MediaView();
     private MediaPlayer mediaPlayer;
-    private final Label clipInfo = new Label("No clip selected.");
-    private final Button playBtn = new Button("Play/Pause");
-    private final RangeTrimBar trimBar = new RangeTrimBar();
+
+    private final StackPane frame = new StackPane();
+    private final Label emptyHint = new Label("Preview will appear here");
+    private final Button bigPlay = new Button("▶");
+
+    private final Label timeLabel = new Label("00:00:00");
+    private final Button playBtn = new Button("▶");
+    private final Label clipInfo = new Label("");
+
+    // ✅ normal progress bar
+    private final Slider progress = new Slider(0, 1, 0);
+
+    private boolean ready = false;
+    private long pendingSeekMs = -1;
 
     public PreviewPane() {
+        root.getStyleClass().addAll("panel", "preview");
+
+        frame.getStyleClass().add("preview-frame");
+        frame.setPadding(new Insets(24));
+        frame.setMinHeight(420);
+
         mediaView.setPreserveRatio(true);
-        mediaView.setFitWidth(800);
-        mediaView.setFitHeight(450);
-        BorderPane.setMargin(mediaView, new Insets(10));
-        BorderPane.setMargin(trimBar, new Insets(10, 20, 10, 20));
-        HBox controls = new HBox(10, playBtn, clipInfo);
-        controls.setPadding(new Insets(8));
+        mediaView.setFitWidth(900);
+        mediaView.setFitHeight(520);
 
+        emptyHint.getStyleClass().add("muted");
+        bigPlay.getStyleClass().addAll("btn", "big-play");
+        bigPlay.setOnAction(e -> togglePlay());
 
-        root.setCenter(mediaView);
-        root.setBottom(new BorderPane(trimBar, null, null, null, controls));
+        StackPane.setAlignment(timeLabel, Pos.TOP_RIGHT);
+        timeLabel.getStyleClass().add("time-label");
 
+        frame.getChildren().addAll(mediaView, emptyHint, bigPlay, timeLabel);
+        root.setCenter(frame);
+        BorderPane.setMargin(frame, new Insets(14));
 
-        playBtn.setOnAction(e -> {
-            if (mediaPlayer == null) return;
-            var status = mediaPlayer.getStatus();
-            if (status == MediaPlayer.Status.PLAYING) mediaPlayer.pause();
-            else mediaPlayer.play();
-        });
+        // progress slider styling hook
+        progress.getStyleClass().add("progress-slider");
+        progress.setDisable(true);
 
-
-        trimBar.setOnChanged((startMs, endMs) -> {
-            if (onTrimChanged != null) onTrimChanged.onChanged(startMs, endMs);
-            if (mediaPlayer != null) {
-                mediaPlayer.pause();
-                mediaPlayer.setStartTime(Duration.millis(startMs));
-                mediaPlayer.setStopTime(Duration.millis(endMs));
-                mediaPlayer.seek(Duration.millis(startMs));
+        // seek behavior
+        progress.valueChangingProperty().addListener((obs, was, is) -> {
+            if (!is) { // released
+                seekTo((long) progress.getValue());
             }
-            trimBar.setPlayhead(startMs);
         });
+        progress.setOnMousePressed(e -> seekTo((long) progress.getValue()));
 
-        trimBar.setOnSeek(ms -> {
-            if (mediaPlayer == null) return;
+        // bottom controls
+        playBtn.getStyleClass().addAll("btn", "icon-btn");
+        clipInfo.getStyleClass().add("muted");
+        playBtn.setOnAction(e -> togglePlay());
 
-            long s = trimBar.getStartMs();
-            long e = trimBar.getEndMs();
-            long target = Math.max(s, Math.min(ms, e)); // stay within the current trim window
+        Region spacer = new Region();
+        HBox.setHgrow(spacer, Priority.ALWAYS);
 
-            mediaPlayer.pause();
-            mediaPlayer.seek(javafx.util.Duration.millis(target));
-            trimBar.setPlayhead(target);
-        });
+        HBox transport = new HBox(10, playBtn, clipInfo, spacer);
+        transport.setPadding(new Insets(8, 16, 12, 16));
+        transport.setAlignment(Pos.CENTER_LEFT);
+
+        VBox bottom = new VBox(10, progress, transport);
+        bottom.setPadding(new Insets(0, 14, 14, 14));
+        root.setBottom(bottom);
+
+        updateEmptyState();
     }
 
-    public void loadVideo(File tempFile, long startMs, long endMs) {
+    private void togglePlay() {
+        if (mediaPlayer == null) return;
+        var status = mediaPlayer.getStatus();
+        if (status == MediaPlayer.Status.PLAYING) mediaPlayer.pause();
+        else mediaPlayer.play();
+    }
+
+    private void updateEmptyState() {
+        boolean empty = (mediaPlayer == null);
+        emptyHint.setVisible(empty);
+        bigPlay.setVisible(empty);
+        timeLabel.setVisible(true);
+    }
+
+    // Keep signature so MainController doesn't break
+    public void loadVideo(File file, long startMsIgnored, long endMsIgnored) {
+        loadVideo(file);
+    }
+
+    public void loadVideo(File file) {
         if (mediaPlayer != null) mediaPlayer.dispose();
-        Media media = new Media(tempFile.toURI().toString());
+        ready = false;
+        pendingSeekMs = -1;
+
+        Media media = new Media(file.toURI().toString());
         mediaPlayer = new MediaPlayer(media);
         mediaView.setMediaPlayer(mediaPlayer);
 
         mediaPlayer.setOnReady(() -> {
+            ready = true;
             long durMs = (long) media.getDuration().toMillis();
 
-            trimBar.setBounds(0, durMs);
-            long s = Math.max(0, Math.min(startMs, durMs));
-            long e = Math.max(s + 100, Math.min(endMs, durMs));
-            trimBar.setValues(s, e);
+            progress.setDisable(false);
+            progress.setMin(0);
+            progress.setMax(Math.max(1, durMs));
+            progress.setValue(0);
 
-            mediaPlayer.setStartTime(Duration.millis(s));
-            mediaPlayer.setStopTime(Duration.millis(e));
-            mediaPlayer.seek(Duration.millis(s));
-
-            trimBar.setPlayhead(s);  // ⬅️ start at the left handle
-
-            // live updates: move playhead as the video plays
             mediaPlayer.currentTimeProperty().addListener((obs, oldT, newT) -> {
-                trimBar.setPlayhead((long) newT.toMillis());
+                long ms = (long) newT.toMillis();
+                timeLabel.setText(formatTime(newT));
+                if (!progress.isValueChanging()) {
+                    progress.setValue(ms);
+                }
             });
 
             mediaPlayer.setOnEndOfMedia(() -> {
                 mediaPlayer.pause();
-                mediaPlayer.seek(mediaPlayer.getStopTime());
-                trimBar.setPlayhead((long) mediaPlayer.getStopTime().toMillis());  // park at end handle
             });
+
+            if (pendingSeekMs >= 0) {
+                long tmp = pendingSeekMs;
+                pendingSeekMs = -1;
+                seekTo(tmp);
+            }
         });
+
+        updateEmptyState();
+    }
+
+    private String formatTime(Duration d) {
+        long ms = (long) d.toMillis();
+        long s = ms / 1000;
+        long hh = s / 3600;
+        long mm = (s % 3600) / 60;
+        long ss = s % 60;
+        return String.format("%02d:%02d:%02d", hh, mm, ss);
     }
 
     public void setInfo(String text) { clipInfo.setText(text); }
+
+    public void seekTo(long ms) {
+        if (mediaPlayer == null || !ready) return;
+        long target = Math.max(0, Math.min(ms, (long) mediaPlayer.getTotalDuration().toMillis()));
+        mediaPlayer.pause();
+        mediaPlayer.seek(Duration.millis(target));
+        progress.setValue(target);
+    }
+
+    public void seekWhenReady(long ms) {
+        if (mediaPlayer == null || !ready) {
+            pendingSeekMs = ms;
+            return;
+        }
+        seekTo(ms);
+    }
 
     public void clear() {
         if (mediaPlayer != null) {
@@ -108,19 +178,17 @@ public class PreviewPane {
             mediaPlayer.dispose();
             mediaPlayer = null;
         }
+        ready = false;
+        pendingSeekMs = -1;
         mediaView.setMediaPlayer(null);
-        setInfo("No clip selected.");
-        trimBar.setBounds(0, 1000);
-        trimBar.setValues(0, 1000);
+        setInfo("");
+        timeLabel.setText("00:00:00");
+        progress.setDisable(true);
+        progress.setMin(0);
+        progress.setMax(1);
+        progress.setValue(0);
+        updateEmptyState();
     }
 
-
-    // Callback when user trims
-    public interface TrimChanged { void onChanged(long startMs, long endMs); }
-    private TrimChanged onTrimChanged;
-    public void setOnTrimChanged(TrimChanged handler) { this.onTrimChanged = handler; }
-
-
     public BorderPane getRoot() { return root; }
-    public RangeTrimBar trimBar() { return trimBar; }
 }

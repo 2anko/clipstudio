@@ -1,0 +1,345 @@
+/* FrameCut-inspired dark theme for JavaFX */
+
+.app-root {
+    -fx-background-color: linear-gradient(to bottom right, #131326, #07070e);
+    -fx-font-smoothing-type: gray;
+}
+
+.topbar {
+    -fx-background-color: rgba(14, 14, 24, 0.88);
+    -fx-border-color: rgba(255, 255, 255, 0.06);
+    -fx-border-width: 0 0 1 0;
+}
+
+.panel {
+    -fx-background-color: rgba(18, 18, 30, 0.72);
+    -fx-border-color: rgba(255, 255, 255, 0.06);
+    -fx-border-radius: 16;
+    -fx-background-radius: 16;
+}
+
+.sidebar { -fx-background-color: rgba(16, 16, 26, 0.76); }
+.preview  { -fx-background-color: rgba(10, 10, 16, 0.55); }
+.timeline { -fx-background-color: rgba(16, 16, 26, 0.82); }
+.inspector{ -fx-background-color: rgba(16, 16, 26, 0.76); }
+
+.brand-title {
+    -fx-text-fill: #ffffff;
+    -fx-font-size: 22px;
+    -fx-font-weight: 800;
+}
+
+.brand-subtitle {
+    -fx-text-fill: rgba(233, 233, 244, 0.60);
+    -fx-font-size: 12px;
+}
+
+.muted { -fx-text-fill: rgba(233, 233, 244, 0.55); }
+
+/* Inputs */
+.search {
+    -fx-background-color: rgba(255, 255, 255, 0.04);
+    -fx-border-color: rgba(255, 255, 255, 0.06);
+    -fx-background-radius: 12;
+    -fx-border-radius: 12;
+    -fx-text-fill: #e9e9f4;
+    -fx-prompt-text-fill: rgba(233, 233, 244, 0.45);
+    -fx-padding: 10 12;
+}
+
+/* Buttons */
+.btn {
+    -fx-background-color: rgba(255, 255, 255, 0.04);
+    -fx-border-color: rgba(255, 255, 255, 0.06);
+    -fx-text-fill: #e9e9f4;
+    -fx-background-radius: 12;
+    -fx-border-radius: 12;
+    -fx-padding: 8 12;
+}
+
+.btn-primary {
+    -fx-background-color: linear-gradient(to bottom, #7c5cff, #5a3bff);
+    -fx-border-color: transparent;
+    -fx-text-fill: white;
+    -fx-font-weight: 800;
+}
+
+/* Pills */
+.pill {
+    -fx-background-color: rgba(255, 255, 255, 0.03);
+    -fx-border-color: rgba(255, 255, 255, 0.06);
+    -fx-text-fill: #e9e9f4;
+    -fx-background-radius: 999;
+    -fx-border-radius: 999;
+    -fx-padding: 6 10;
+}
+
+.pill:selected {
+    -fx-background-color: rgba(124, 92, 255, 0.28);
+    -fx-border-color: rgba(124, 92, 255, 0.65);
+}
+
+/* Projects cards */
+.project-card {
+    -fx-background-color: rgba(18, 18, 30, 0.78);
+    -fx-border-color: rgba(255, 255, 255, 0.06);
+    -fx-background-radius: 18;
+    -fx-border-radius: 18;
+}
+
+.card-thumb {
+    -fx-background-color: rgba(255, 255, 255, 0.03);
+    -fx-border-color: rgba(255, 255, 255, 0.05);
+    -fx-background-radius: 18 18 0 0;
+    -fx-border-radius: 18 18 0 0;
+}
+
+.card-title { -fx-text-fill: #ffffff; -fx-font-weight: 800; }
+.card-date  { -fx-text-fill: rgba(233, 233, 244, 0.55); -fx-font-size: 11px; }
+.card-meta  { -fx-text-fill: rgba(233, 233, 244, 0.45); -fx-font-size: 11px; }
+
+.duration-badge {
+    -fx-background-color: rgba(0, 0, 0, 0.62);
+    -fx-text-fill: white;
+    -fx-padding: 4 6;
+    -fx-background-radius: 10;
+    -fx-font-size: 11px;
+}
+
+.status {
+    -fx-background-radius: 999;
+    -fx-padding: 3 8;
+    -fx-font-size: 10px;
+    -fx-font-weight: 800;
+    -fx-text-fill: white;
+}
+
+/* Make ScrollPane + viewport transparent so the app-root background shows */
+.transparent-scroll {
+    -fx-background-color: transparent;
+    -fx-background: transparent;
+}
+
+.transparent-scroll > .viewport {
+    -fx-background-color: transparent;
+}
+
+.transparent-scroll .corner {
+    -fx-background-color: transparent;
+}
+
+/* TilePane holding cards */
+.card-grid {
+    -fx-background-color: transparent;
+}
+
+.status-editing   { -fx-background-color: rgba(124, 92, 255, 0.60); }
+.status-completed { -fx-background-color: rgba(46, 204, 113, 0.55); }
+.status-draft     { -fx-background-color: rgba(233, 233, 244, 0.18); -fx-text-fill: rgba(233, 233, 244, 0.85); }
+
+/* ===== Editor controls ===== */
+
+.editor-root .split-pane {
+    -fx-background-color: transparent;
+}
+.split-pane:horizontal > .split-pane-divider {
+    -fx-padding: 0 1 0 1;
+    -fx-background-color: rgba(255,255,255,0.06);
+}
+
+.top-title {
+    -fx-text-fill: #ffffff;
+    -fx-font-weight: 800;
+    -fx-font-size: 13px;
+}
+
+.btn-ghost {
+    -fx-background-color: transparent;
+    -fx-border-color: transparent;
+    -fx-text-fill: rgba(233, 233, 244, 0.85);
+}
+
+.btn-secondary {
+    -fx-background-color: rgba(255,255,255,0.05);
+    -fx-border-color: rgba(255,255,255,0.08);
+    -fx-text-fill: rgba(233, 233, 244, 0.90);
+    -fx-background-radius: 12;
+    -fx-border-radius: 12;
+}
+
+.icon-btn {
+    -fx-background-color: rgba(255,255,255,0.04);
+    -fx-border-color: rgba(255,255,255,0.06);
+    -fx-text-fill: rgba(233,233,244,0.92);
+    -fx-background-radius: 12;
+    -fx-border-radius: 12;
+    -fx-padding: 6 10;
+}
+.icon-btn:hover {
+    -fx-background-color: rgba(255,255,255,0.07);
+}
+
+.combo-dark {
+    -fx-background-color: rgba(255,255,255,0.04);
+    -fx-border-color: rgba(255,255,255,0.06);
+    -fx-background-radius: 12;
+    -fx-border-radius: 12;
+    -fx-text-fill: #e9e9f4;
+}
+
+/* Sidebar */
+.section-title {
+    -fx-text-fill: rgba(233,233,244,0.90);
+    -fx-font-weight: 800;
+    -fx-font-size: 12px;
+    -fx-letter-spacing: 1px;
+}
+
+.tab {
+    -fx-background-color: rgba(255,255,255,0.03);
+    -fx-border-color: rgba(255,255,255,0.06);
+    -fx-text-fill: #e9e9f4;
+    -fx-background-radius: 999;
+    -fx-border-radius: 999;
+    -fx-padding: 5 10;
+}
+.tab:selected {
+    -fx-background-color: rgba(124, 92, 255, 0.28);
+    -fx-border-color: rgba(124, 92, 255, 0.65);
+}
+
+.dropzone {
+    -fx-background-color: rgba(255,255,255,0.02);
+    -fx-border-color: rgba(233,233,244,0.10);
+    -fx-border-radius: 14;
+    -fx-background-radius: 14;
+    -fx-border-style: segments(6, 6);
+}
+
+/* ListView dark skin */
+.dark-list {
+    -fx-background-color: transparent;
+    -fx-control-inner-background: transparent;
+}
+.dark-list .list-cell {
+    -fx-background-color: transparent;
+    -fx-text-fill: rgba(233,233,244,0.82);
+    -fx-padding: 10 10;
+}
+.dark-list .list-cell:filled:selected {
+    -fx-background-color: rgba(124,92,255,0.22);
+    -fx-background-radius: 12;
+}
+
+/* Preview */
+.preview-frame {
+    -fx-background-color: rgba(0,0,0,0.22);
+    -fx-border-color: rgba(255,255,255,0.06);
+    -fx-background-radius: 18;
+    -fx-border-radius: 18;
+}
+.big-play {
+    -fx-background-color: rgba(124,92,255,0.25);
+    -fx-border-color: rgba(124,92,255,0.55);
+    -fx-text-fill: #ffffff;
+    -fx-font-weight: 800;
+    -fx-background-radius: 999;
+    -fx-border-radius: 999;
+    -fx-padding: 16 22;
+}
+.time-label {
+    -fx-text-fill: rgba(124, 180, 255, 0.95);
+    -fx-font-size: 11px;
+}
+
+/* Timeline */
+.track-label {
+    -fx-text-fill: rgba(233,233,244,0.75);
+    -fx-font-size: 12px;
+}
+
+.timeline-ruler {
+    -fx-background-color: rgba(255,255,255,0.02);
+    -fx-border-color: rgba(255,255,255,0.06);
+    -fx-border-width: 0 0 1 0;
+}
+.ruler-tick {
+    -fx-text-fill: rgba(233,233,244,0.35);
+    -fx-font-size: 10px;
+}
+
+.timeline-clip {
+    -fx-background-color: rgba(124,92,255,0.85);
+    -fx-background-radius: 12;
+    -fx-border-radius: 12;
+}
+.clip-text {
+    -fx-text-fill: white;
+    -fx-font-weight: 700;
+    -fx-font-size: 11px;
+}
+.clip-selected {
+    -fx-effect: dropshadow(gaussian, rgba(124,92,255,0.6), 10, 0.4, 0, 0);
+}
+
+.playhead-tri {
+    -fx-fill: rgba(124, 92, 255, 0.95);
+}
+
+.playhead-line {
+    -fx-stroke: rgba(124, 92, 255, 0.95);
+    -fx-stroke-width: 2;
+}
+
+.progress-slider {
+    -fx-padding: 0 6 0 6;
+}
+
+.progress-slider .track {
+    -fx-background-color: rgba(255,255,255,0.10);
+    -fx-background-radius: 999;
+    -fx-pref-height: 4px;
+}
+
+.progress-slider .thumb {
+    -fx-background-color: rgba(124, 92, 255, 0.95);
+    -fx-background-radius: 999;
+    -fx-pref-width: 10px;
+    -fx-pref-height: 10px;
+}
+
+/* ===== Export progress overlay ===== */
+
+.export-overlay {
+    -fx-background-color: rgba(0, 0, 0, 0.55);
+}
+
+.export-overlay-box {
+    -fx-background-color: rgba(18, 18, 30, 0.88);
+    -fx-border-color: rgba(255, 255, 255, 0.08);
+    -fx-border-radius: 20;
+    -fx-background-radius: 20;
+    -fx-padding: 24 28;
+    -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.45), 18, 0.25, 0, 6);
+}
+
+.export-spinner {
+    -fx-stroke: rgba(233, 233, 244, 0.92);
+    -fx-stroke-width: 3.0;
+}
+
+.export-progress {
+    -fx-pref-height: 10px;
+}
+
+.export-progress .track {
+    -fx-background-color: rgba(255, 255, 255, 0.10);
+    -fx-background-radius: 999;
+    -fx-background-insets: 0;
+}
+
+.export-progress .bar {
+    -fx-background-color: rgba(124, 92, 255, 0.95);
+    -fx-background-radius: 999;
+    -fx-background-insets: 0;
+}
