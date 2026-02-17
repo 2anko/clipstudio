@@ -183,6 +183,14 @@ public class TimelinePane {
         e.consume(); // prevents default right-click weirdness
     }
 
+    public Object lanesChildCount() {
+        return lanes.getChildren().size();
+    }
+
+    public Object rulerChildCount() {
+        return ruler.getChildren().size();
+    }
+
     public interface DropHandler { void onDrop(long assetId); }
     private DropHandler onDrop;
     public void setOnDrop(DropHandler h) { onDrop = h; }

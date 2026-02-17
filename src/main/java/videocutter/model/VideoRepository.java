@@ -39,6 +39,7 @@ public class VideoRepository {
         init();
     }
 
+
     private void init() throws SQLException {
         try (Connection c = DriverManager.getConnection(url);
              Statement s = c.createStatement()) {
@@ -75,72 +76,6 @@ public class VideoRepository {
             try { st.executeUpdate("ALTER TABLE videos ADD COLUMN path TEXT"); } catch (SQLException ignored) {}
             try { st.executeUpdate("ALTER TABLE videos ADD COLUMN edit_path TEXT"); } catch (SQLException ignored) {}
             try { st.executeUpdate("ALTER TABLE videos ADD COLUMN is_hidden INTEGER DEFAULT 0"); } catch (SQLException ignored) {}
-        }
-    }
-
-    public Path ensureEditCopy(long id) {
-        // Option A: no edit copies. Return the original path.
-        return materializeToTemp(id).toPath();
-    }
-
-    /** Hide an asset from the library list without deleting it (not used by default). */
-    public void hideAsset(long id) {
-        try (Connection c = DriverManager.getConnection(url);
-             PreparedStatement ps = c.prepareStatement("UPDATE videos SET is_hidden=1 WHERE id=?")) {
-            ps.setLong(1, id);
-            ps.executeUpdate();
-        } catch (SQLException e) { throw new RuntimeException(e); }
-    }
-
-    public long insertDerivedVideo(String title, Path filePath, long parentId) throws SQLException {
-        FfmpegService.Meta meta = ff.probe(filePath);
-
-        String sql = """
-        INSERT INTO videos(title,duration_ms,width,height,created_at,path,edit_path,data,is_temp,is_hidden,parent_id)
-        VALUES(?,?,?,?,?,?,NULL,NULL,0,0,?)
-    """;
-
-        try (Connection c = DriverManager.getConnection(url);
-             PreparedStatement ps = c.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
-
-            ps.setString(1, title);
-            ps.setLong(2, meta.durationMs);
-            ps.setInt(3, meta.width);
-            ps.setInt(4, meta.height);
-            ps.setString(5, Instant.now().toString());
-            ps.setString(6, filePath.toAbsolutePath().normalize().toString());
-            ps.setLong(7, parentId);
-
-            ps.executeUpdate();
-            try (ResultSet rs = ps.getGeneratedKeys()) {
-                rs.next();
-                return rs.getLong(1);
-            }
-        }
-    }
-
-
-    public long insertTempVideo(String title, Path filePath, long durationMs, long parentId) throws SQLException {
-        String sql = "INSERT INTO videos(title,duration_ms,width,height,created_at,path,data,is_temp,parent_id) " +
-                "VALUES(?,?,?,?,?,?,NULL,?,?)";
-
-        try (Connection c = DriverManager.getConnection(url);
-             PreparedStatement ps = c.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
-
-            ps.setString(1, title);
-            ps.setLong(2, durationMs);
-            ps.setInt(3, 0);
-            ps.setInt(4, 0);
-            ps.setString(5, Instant.now().toString());
-            ps.setString(6, filePath.toAbsolutePath().toString());
-            ps.setInt(7, 1);
-            ps.setLong(8, parentId);
-
-            ps.executeUpdate();
-            try (ResultSet rs = ps.getGeneratedKeys()) {
-                rs.next();
-                return rs.getLong(1);
-            }
         }
     }
 
@@ -275,9 +210,6 @@ public class VideoRepository {
             throw new RuntimeException(e);
         }
     }
-
-
-    public void deleteById(long id) { deleteByIds(List.of(id)); }
 
     public void deleteByIds(List<Long> ids) {
         if (ids == null || ids.isEmpty()) return;

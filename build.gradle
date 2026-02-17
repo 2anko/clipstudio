@@ -3,9 +3,18 @@ plugins {
     id 'org.openjfx.javafxplugin' version '0.1.0'  // if this fails, try 0.0.14
 }
 repositories { mavenCentral() }
-dependencies { implementation 'org.xerial:sqlite-jdbc:3.46.0.0' }
+dependencies {
+    implementation 'org.xerial:sqlite-jdbc:3.46.0.0'
+    implementation("uk.co.caprica:vlcj:4.12.1")
+    implementation("uk.co.caprica:vlcj-javafx:1.2.1")
+    implementation("org.slf4j:slf4j-simple:2.0.16")
+}
 javafx {
     version = '23.0.1'
     modules = [ 'javafx.controls', 'javafx.media' ]
+}
+tasks.named("run", JavaExec) {
+    jvmArgs "-Djna.library.path=C:/Program Files/VideoLAN/VLC"
+    environment "VLC_PLUGIN_PATH", "C:/Program Files/VideoLAN/VLC/plugins"
 }
 application { mainClass = 'videocutter.app.Main' }

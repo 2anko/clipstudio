@@ -10,10 +10,30 @@ import videocutter.service.FfmpegService;
 import videocutter.view.AppShell;
 import videocutter.view.MainView;
 import videocutter.view.ProjectsView;
+import com.sun.jna.NativeLibrary;
+import uk.co.caprica.vlcj.binding.support.runtime.RuntimeUtil;
 
 import java.sql.SQLException;
 
 public class Main extends Application {
+    static {
+        String vlcDir = System.getenv("VLC_HOME");
+        if (vlcDir == null || vlcDir.isBlank()) {
+            vlcDir = "C:\\Program Files\\VideoLAN\\VLC";
+        }
+
+        // Prevent JNA from accidentally loading some other libvlc.dll from PATH/system dirs
+        System.setProperty("jna.nosys", "true");
+
+        // Tell JNA exactly where to load from
+        System.setProperty("jna.library.path", vlcDir);
+        NativeLibrary.addSearchPath(RuntimeUtil.getLibVlcLibraryName(), vlcDir); // libvlc.dll
+        NativeLibrary.addSearchPath("libvlccore", vlcDir);                      // libvlccore.dll
+
+        // VLC codecs/plugins
+        System.setProperty("VLC_PLUGIN_PATH", vlcDir + "\\plugins");
+    }
+
     @Override
     public void start(Stage stage) throws SQLException {
         VideoRepository repo = new VideoRepository("videos.db");

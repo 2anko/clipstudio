@@ -99,59 +99,7 @@ public class FfmpegService {
         ));
     }
 
-    /** Exact trim by re-encoding video (NVENC if available). */
-    public void cutExactTo(Path input, long startMs, long endMs, Path out) throws Exception {
-        long durMs = Math.max(0, endMs - startMs);
-
-        List<String> common = List.of(
-                "ffmpeg", "-y",
-                "-hide_banner", "-loglevel", "error",
-                "-ss", msToTs(startMs),
-                "-t",  msToTs(durMs),
-                "-i", input.toString(),
-                "-map", "0:v:0", "-map", "0:a?",
-                "-movflags", "+faststart",
-                out.toString()
-        );
-
-        List<List<String>> candidates = new ArrayList<>();
-
-        if (hasNvenc()) {
-            candidates.add(merge(
-                    List.of("-c:v", "h264_nvenc", "-preset", "p4", "-rc", "vbr", "-cq", "19", "-b:v", "0",
-                            "-c:a", "copy",
-                            "-pix_fmt", "yuv420p"),
-                    common
-            ));
-            candidates.add(merge(
-                    List.of("-c:v", "h264_nvenc", "-preset", "p4", "-rc", "vbr", "-cq", "19", "-b:v", "0",
-                            "-c:a", "aac", "-b:a", "192k",
-                            "-pix_fmt", "yuv420p"),
-                    common
-            ));
-        }
-
-        candidates.add(merge(
-                List.of("-c:v", "libx264", "-preset", "veryfast", "-crf", "18",
-                        "-c:a", "copy",
-                        "-pix_fmt", "yuv420p"),
-                common
-        ));
-        candidates.add(merge(
-                List.of("-c:v", "libx264", "-preset", "veryfast", "-crf", "18",
-                        "-c:a", "aac", "-b:a", "192k",
-                        "-pix_fmt", "yuv420p"),
-                common
-        ));
-
-        runFFmpegWithFallback(candidates);
-    }
-
     // ---------- NEW: Export timeline (smart-copy if possible, otherwise render exact) ----------
-
-    public void exportTimeline(List<Segment> segs, Path output) throws Exception {
-        exportTimeline(segs, output, null);
-    }
 
     public void exportTimeline(List<Segment> segs, Path output, DoubleConsumer onProgress) throws Exception {
         if (segs == null || segs.isEmpty()) throw new IllegalArgumentException("No segments to export.");
@@ -532,14 +480,6 @@ public class FfmpegService {
         }
         if (last != null) throw last;
         throw new RuntimeException("ffmpeg failed (no candidates)");
-    }
-
-    private static List<String> merge(List<String> beforeOut, List<String> common) {
-        List<String> out = new ArrayList<>();
-        out.addAll(common.subList(0, common.size() - 1));
-        out.addAll(beforeOut);
-        out.add(common.get(common.size() - 1));
-        return out;
     }
 
     private String msToTs(long ms) {

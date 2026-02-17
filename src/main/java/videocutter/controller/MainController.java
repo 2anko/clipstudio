@@ -23,9 +23,10 @@ public class MainController {
     private final Project project;
     private final VideoRepository repo;
     private final FfmpegService ff;
-
+    private long previewAssetId = -1;
     private TimelineClip selected;
     private long lastSourceMs = 0;
+    private long selectedTimelineStartMs = 0;
 
     public MainController(MainView view, Project project, VideoRepository repo, FfmpegService ff) {
         this.view = view;
@@ -68,22 +69,54 @@ public class MainController {
         view.timeline().setOnScrub((clip, sourceMs, timelineMs) -> {
             selected = clip;
             lastSourceMs = sourceMs;
+            selectedTimelineStartMs = timelineMs - (sourceMs - clip.startMs());
 
             VideoAsset a = repo.findById(clip.assetId());
             if (a == null) return;
 
-            File media = repo.materializeToTemp(a.id());
-            view.preview().loadVideo(media);
+            long assetId = a.id();
+            if (previewAssetId != assetId) {
+                previewAssetId = assetId;
+
+                // No preview proxies: VLC handles playback; FFmpeg handles frame-accurate scrubbing.
+                File media = repo.materializeToTemp(assetId);
+                view.preview().loadVideo(media);
+            }
+
             view.preview().setInfo(a.title() + " [" + a.prettyDuration() + "]");
             view.preview().seekWhenReady(sourceMs);
-
             view.timeline().setPlayheadTimelineMs(timelineMs);
+        });
+
+        view.preview().setOnUserSeek(ms -> {
+            if (selected == null) return;
+            if (previewAssetId != selected.assetId()) return;
+            lastSourceMs = ms;
+            view.timeline().setPlayheadTimelineMs(selectedSourceToTimelineMs(ms));
+        });
+
+        view.preview().setOnTime(ms -> {
+            if (selected == null) return;
+            if (previewAssetId != selected.assetId()) return;
+            lastSourceMs = ms;
+            if (view.preview().isPlaying()) {
+                view.timeline().setPlayheadTimelineMs(selectedSourceToTimelineMs(ms));
+            }
         });
 
         view.timeline().cutBtn().setOnAction(e -> {
             if (selected == null) return;
 
             long cutMs = lastSourceMs;
+
+            // If the preview is actively playing this same asset, cut at the true playback time.
+            if (previewAssetId == selected.assetId() && view.preview().isPlaying()) {
+                cutMs = view.preview().getCurrentMs();
+            }
+
+            // Clamp to the selected clip range (avoid tiny clips)
+            cutMs = Math.max(selected.startMs() + 100, Math.min(cutMs, selected.endMs() - 100));
+
             project.splitClipAt(selected, cutMs);
 
             selected = null;
@@ -106,6 +139,7 @@ public class MainController {
             selected = null;
             view.timeline().selectClip(null);
             view.timeline().setClips(project.clips());
+            previewAssetId = -1;
         });
 
         view.toolbar().exportBtn().setOnAction(e -> {
@@ -123,6 +157,7 @@ public class MainController {
                     }
             );
             if (task != null) view.showExportOverlay(task);
+            previewAssetId = -1;
         });
 
 
@@ -154,6 +189,12 @@ public class MainController {
             view.timeline().setClips(project.clips());
             refreshLibrary();
         });
+    }
+
+    private long selectedSourceToTimelineMs(long sourceMs) {
+        if (selected == null) return 0;
+        long clamped = Math.max(selected.startMs(), Math.min(sourceMs, selected.endMs()));
+        return selectedTimelineStartMs + (clamped - selected.startMs());
     }
 
     private void refreshLibrary() {
