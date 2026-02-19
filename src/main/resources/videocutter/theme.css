@@ -343,3 +343,25 @@
     -fx-background-radius: 999;
     -fx-background-insets: 0;
 }
+
+.ikonli-font-icon {
+    -fx-icon-color: rgba(233, 233, 244, 0.92);
+    -fx-icon-size: 14px;
+}
+
+.btn-primary .ikonli-font-icon {
+    -fx-icon-color: #ffffff;
+}
+
+.btn-ghost .ikonli-font-icon {
+    -fx-icon-color: rgba(233, 233, 244, 0.85);
+}
+
+.icon-btn:hover .ikonli-font-icon {
+    -fx-icon-color: #ffffff;
+}
+
+.big-play .ikonli-font-icon {
+    -fx-icon-color: #ffffff;
+    -fx-icon-size: 22px;
+}

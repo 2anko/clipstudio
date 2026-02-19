@@ -40,6 +40,7 @@ import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.LongConsumer;
+import org.kordamp.ikonli.javafx.FontIcon;
 
 /**
  * Hybrid preview:
@@ -60,13 +61,13 @@ public class PreviewPane {
 
     private final StackPane frame = new StackPane();
     private final Label emptyHint = new Label("Preview will appear here");
-    private final Button bigPlay = new Button("▶");
+    private final Button bigPlay = new Button();
 
     private LongConsumer onUserSeek;
     private LongConsumer onTime;
 
     private final Label timeLabel = new Label("00:00:00");
-    private final Button playBtn = new Button("▶");
+    private final Button playBtn = new Button();
     private final Label clipInfo = new Label("");
 
     private final Slider progress = new Slider(0, 1, 0);
@@ -132,6 +133,7 @@ public class PreviewPane {
 
         emptyHint.getStyleClass().add("muted");
 
+        bigPlay.setGraphic(new FontIcon("fas-play"));
         bigPlay.getStyleClass().addAll("btn", "big-play");
         bigPlay.setOnAction(e -> togglePlay());
 
@@ -220,7 +222,7 @@ public class PreviewPane {
 
         progress.setDisable(false);
         progress.setMin(0);
-        progress.setMax(1);
+        progress.setMax(Integer.MAX_VALUE); // real length set lazily once VLC reports it
         progress.setValue(0);
 
         // "Start paused" on first frame
@@ -235,6 +237,9 @@ public class PreviewPane {
         // Start playback so VLC pipeline initializes, then we'll pause on first playing event
         String mrl = file.getAbsolutePath();
         vlcPlayer.media().play(mrl);
+
+        // Restart the UI timer if it was stopped by a previous clear().
+        startUiTimer();
 
         // While we wait for VLC, show a frame via FFmpeg (fast user feedback)
         scrubOverlay.setVisible(true);
@@ -366,9 +371,10 @@ public class PreviewPane {
             timeLabel.setText(formatTimeMs(nowMs));
         }
 
-        // Hide scrub overlay once VLC reaches the target during playback
+        // Hide scrub overlay once VLC reaches (or passes) the target during playback.
+        // Use >= target-140 so a VLC tick that jumps past the window still clears the overlay.
         if (playing && scrubOverlay.isVisible() && hideScrubWhenNearMs >= 0) {
-            if (Math.abs(nowMs - hideScrubWhenNearMs) <= 140) {
+            if (nowMs >= hideScrubWhenNearMs - 140) {
                 scrubOverlay.setVisible(false);
                 hideScrubWhenNearMs = -1;
             }
@@ -411,8 +417,17 @@ public class PreviewPane {
 
     public void pause() {
         if (vlcPlayer == null || currentFile == null) return;
-        try { vlcPlayer.controls().setPause(true); } catch (Exception ignored) {}
-        // When paused, show the accurate frame overlay
+        try {
+            // Get the EXACT current time from the player right before pausing.
+            long pauseTime = vlcPlayer.status().time();
+            // Only update desiredMs if the time is valid, to prevent it from resetting to 0
+            if (pauseTime > 0) {
+                desiredMs = pauseTime;
+            }
+            vlcPlayer.controls().setPause(true);
+        } catch (Exception ignored) {}
+
+        // Now, request the frame for the precise pause time.
         scrubOverlay.setVisible(true);
         requestScrubFrame(desiredMs);
         updatePlayButtonState();
@@ -420,7 +435,7 @@ public class PreviewPane {
 
     private void updatePlayButtonState() {
         boolean playing = isPlaying();
-        playBtn.setText(playing ? "⏸" : "▶");
+        playBtn.setGraphic(new FontIcon(playing ? "fas-pause" : "fas-play"));
     }
 
     private void updateEmptyState() {
@@ -476,6 +491,15 @@ public class PreviewPane {
         seekOnNextPlayingEvent = -1;
         keepPlayingAfterSeek = false;
         hideScrubWhenNearMs = -1;
+
+        // Stop the UI polling timer so it doesn't keep running after the view is discarded.
+        if (uiTimer != null) {
+            uiTimer.stop();
+            uiTimer = null;
+        }
+
+        // Cancel any pending scrub work.
+        scrubExec.getQueue().clear();
 
         // Invalidate scrub work and clear the overlay
         scrubRequestId.incrementAndGet();
@@ -613,6 +637,8 @@ public class PreviewPane {
         double s = ms / 1000.0;
         return String.format(Locale.US, "%.3f", s);
     }
+
+
 
     private static String formatTimeMs(long ms) {
         long s = ms / 1000;

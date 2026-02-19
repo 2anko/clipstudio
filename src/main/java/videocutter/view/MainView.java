@@ -5,7 +5,7 @@ import javafx.animation.KeyFrame;
 import javafx.animation.KeyValue;
 import javafx.animation.Timeline;
 import javafx.concurrent.Task;
-import javafx.concurrent.WorkerStateEvent;
+import javafx.event.EventHandler;
 import javafx.geometry.Insets;
 import javafx.geometry.Orientation;
 import javafx.geometry.Pos;
@@ -30,6 +30,9 @@ public class MainView {
     private final StackPane exportOverlay = new StackPane();
     private final ProgressBar exportProgress = new ProgressBar(0);
     private final TriangleSpinner spinner = new TriangleSpinner(64);
+
+    private Task<?> currentExportTask;
+    private final EventHandler<javafx.concurrent.WorkerStateEvent> onExportDone = e -> hideExportOverlay();
 
     public MainView() {
         root.getStyleClass().addAll("app-root", "editor-root");
@@ -67,38 +70,66 @@ public class MainView {
         exportOverlay.getChildren().add(box);
     }
 
-    /** Shows the overlay and binds the progress bar to the Task (auto-hides on finish). */
     public void showExportOverlay(Task<?> task) {
-        if (task == null) return;
+        if (task == null) {
+            return;
+        }
 
-        exportProgress.progressProperty().unbind();
+        // Clean up previous task bindings
+        if (currentExportTask != null) {
+            exportProgress.progressProperty().unbind();
+            currentExportTask.removeEventHandler(javafx.concurrent.WorkerStateEvent.WORKER_STATE_SUCCEEDED, onExportDone);
+            currentExportTask.removeEventHandler(javafx.concurrent.WorkerStateEvent.WORKER_STATE_FAILED, onExportDone);
+            currentExportTask.removeEventHandler(javafx.concurrent.WorkerStateEvent.WORKER_STATE_CANCELLED, onExportDone);
+        }
+
+        currentExportTask = task;
         exportProgress.progressProperty().bind(task.progressProperty());
 
         exportOverlay.setVisible(true);
         exportOverlay.setManaged(true);
         spinner.start();
 
-        task.addEventHandler(WorkerStateEvent.WORKER_STATE_SUCCEEDED, e -> hideExportOverlay());
-        task.addEventHandler(WorkerStateEvent.WORKER_STATE_FAILED, e -> hideExportOverlay());
-        task.addEventHandler(WorkerStateEvent.WORKER_STATE_CANCELLED, e -> hideExportOverlay());
+        task.addEventHandler(javafx.concurrent.WorkerStateEvent.WORKER_STATE_SUCCEEDED, onExportDone);
+        task.addEventHandler(javafx.concurrent.WorkerStateEvent.WORKER_STATE_FAILED, onExportDone);
+        task.addEventHandler(javafx.concurrent.WorkerStateEvent.WORKER_STATE_CANCELLED, onExportDone);
     }
 
     public void hideExportOverlay() {
-        exportProgress.progressProperty().unbind();
+        if (currentExportTask != null) {
+            exportProgress.progressProperty().unbind();
+            currentExportTask = null;
+        }
         exportProgress.setProgress(0);
         spinner.stop();
         exportOverlay.setVisible(false);
         exportOverlay.setManaged(false);
     }
 
-    public StackPane getRoot() { return root; }
-    public LibraryPane library() { return libraryPane; }
-    public PreviewPane preview() { return previewPane; }
-    public TimelinePane timeline() { return timelinePane; }
-    public ToolbarPane toolbar() { return toolbarPane; }
-    public InspectorPane inspector() { return inspectorPane; }
+    public StackPane getRoot() {
+        return root;
+    }
 
-    /** Triangle “spinner”: a single dash animates around a triangle stroke. */
+    public LibraryPane library() {
+        return libraryPane;
+    }
+
+    public PreviewPane preview() {
+        return previewPane;
+    }
+
+    public TimelinePane timeline() {
+        return timelinePane;
+    }
+
+    public ToolbarPane toolbar() {
+        return toolbarPane;
+    }
+
+    public InspectorPane inspector() {
+        return inspectorPane;
+    }
+
     private static class TriangleSpinner extends StackPane {
         private final Polygon tri;
         private final Timeline anim;
@@ -129,7 +160,13 @@ public class MainView {
             setAlignment(Pos.CENTER);
         }
 
-        void start() { anim.play(); }
-        void stop()  { anim.stop(); tri.setStrokeDashOffset(0.0); }
+        void start() {
+            anim.play();
+        }
+
+        void stop() {
+            anim.stop();
+            tri.setStrokeDashOffset(0.0);
+        }
     }
 }

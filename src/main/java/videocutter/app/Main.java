@@ -1,8 +1,13 @@
 package videocutter.app;
 
+import com.sun.jna.NativeLibrary;
 import javafx.application.Application;
+import javafx.application.Platform;
 import javafx.scene.Scene;
+import javafx.scene.control.Alert;
 import javafx.stage.Stage;
+import javafx.stage.Window;
+import uk.co.caprica.vlcj.binding.support.runtime.RuntimeUtil;
 import videocutter.controller.MainController;
 import videocutter.model.Project;
 import videocutter.model.VideoRepository;
@@ -10,8 +15,6 @@ import videocutter.service.FfmpegService;
 import videocutter.view.AppShell;
 import videocutter.view.MainView;
 import videocutter.view.ProjectsView;
-import com.sun.jna.NativeLibrary;
-import uk.co.caprica.vlcj.binding.support.runtime.RuntimeUtil;
 
 import java.sql.SQLException;
 
@@ -22,15 +25,10 @@ public class Main extends Application {
             vlcDir = "C:\\Program Files\\VideoLAN\\VLC";
         }
 
-        // Prevent JNA from accidentally loading some other libvlc.dll from PATH/system dirs
         System.setProperty("jna.nosys", "true");
-
-        // Tell JNA exactly where to load from
         System.setProperty("jna.library.path", vlcDir);
-        NativeLibrary.addSearchPath(RuntimeUtil.getLibVlcLibraryName(), vlcDir); // libvlc.dll
-        NativeLibrary.addSearchPath("libvlccore", vlcDir);                      // libvlccore.dll
-
-        // VLC codecs/plugins
+        NativeLibrary.addSearchPath(RuntimeUtil.getLibVlcLibraryName(), vlcDir);
+        NativeLibrary.addSearchPath("libvlccore", vlcDir);
         System.setProperty("VLC_PLUGIN_PATH", vlcDir + "\\plugins");
     }
 
@@ -48,14 +46,12 @@ public class Main extends Application {
             MainController controller = new MainController(editor, project, repo, new FfmpegService());
             controller.init();
 
-            // Back to projects
             editor.toolbar().backBtn().setOnAction(ev -> shell.showProjects(home));
             shell.showEditor(editor);
         });
 
         Scene scene = new Scene(shell.getRoot(), 1280, 720);
 
-        // Put theme.css at: src/main/resources/videocutter/theme.css
         var css = Main.class.getResource("/videocutter/theme.css");
         if (css == null) {
             throw new IllegalStateException("Missing theme.css at src/main/resources/videocutter/theme.css");
@@ -67,5 +63,18 @@ public class Main extends Application {
         stage.show();
     }
 
-    public static void main(String[] args) { launch(args); }
+    public static void showAlert(String title, String message, Window owner) {
+        Platform.runLater(() -> {
+            Alert alert = new Alert(Alert.AlertType.ERROR);
+            alert.setTitle(title);
+            alert.setHeaderText(null);
+            alert.setContentText(message);
+            alert.initOwner(owner);
+            alert.showAndWait();
+        });
+    }
+
+    public static void main(String[] args) {
+        launch(args);
+    }
 }

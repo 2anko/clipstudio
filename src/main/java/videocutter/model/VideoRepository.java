@@ -1,6 +1,7 @@
 package videocutter.model;
 
 import videocutter.service.FfmpegService;
+import videocutter.service.Meta;
 import videocutter.service.TempFiles;
 
 import java.io.File;
@@ -103,7 +104,7 @@ public class VideoRepository {
 
     public long importMp4(Path file) {
         try {
-            FfmpegService.Meta meta = ff.probe(file);
+            Meta meta = ff.probe(file);
 
             String safeName = file.getFileName().toString().replaceAll("[\\\\/:*?\"<>|]", "_");
             Path dest = vaultDir.resolve(System.currentTimeMillis() + "-" + safeName);
@@ -116,9 +117,9 @@ public class VideoRepository {
                          Statement.RETURN_GENERATED_KEYS)) {
 
                 ps.setString(1, file.getFileName().toString());
-                ps.setLong(2, meta.durationMs);
-                ps.setInt(3, meta.width);
-                ps.setInt(4, meta.height);
+                ps.setLong(2, meta.durationMs());
+                ps.setInt(3, meta.width());
+                ps.setInt(4, meta.height());
                 ps.setString(5, Instant.now().toString());
                 ps.setString(6, dest.toAbsolutePath().toString());
                 ps.executeUpdate();
@@ -201,6 +202,9 @@ public class VideoRepository {
             }
 
             byte[] bytes = rs.getBytes(3);
+            if (bytes == null || bytes.length == 0) {
+                throw new IllegalStateException("Asset " + id + " has no file path and no data blob — it may be corrupt.");
+            }
             String title = rs.getString(4);
             File f = TempFiles.tmp("asset-" + id + "-" + (title == null ? "clip" : title), ".mp4").toFile();
             try (FileOutputStream fos = new FileOutputStream(f)) { fos.write(bytes); }

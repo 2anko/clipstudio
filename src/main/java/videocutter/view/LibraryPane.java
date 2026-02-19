@@ -6,6 +6,7 @@ import javafx.scene.control.*;
 import javafx.scene.input.*;
 import javafx.scene.layout.*;
 import javafx.stage.FileChooser;
+import org.kordamp.ikonli.javafx.FontIcon;
 import videocutter.model.VideoAsset;
 
 import java.io.File;
@@ -15,14 +16,14 @@ import java.util.stream.Collectors;
 public class LibraryPane {
     private final BorderPane root = new BorderPane();
 
-    private final TextField search = new TextField();
+    private final TextField   search     = new TextField();
     private final ToggleGroup mediaGroup = new ToggleGroup();
-    private final ToggleButton all = tab("All", true);
+    private final ToggleButton all   = tab("All",   true);
     private final ToggleButton video = tab("Video", false);
     private final ToggleButton audio = tab("Audio", false);
     private final ToggleButton image = tab("Image", false);
 
-    private final StackPane dropzone = new StackPane();
+    private final StackPane       dropzone  = new StackPane();
     private final ListView<VideoAsset> list = new ListView<>();
 
     private final Button deleteBtn = new Button("Delete");
@@ -31,12 +32,14 @@ public class LibraryPane {
         root.getStyleClass().addAll("panel", "sidebar");
         root.setPrefWidth(320);
 
-        // Header row
+        // ---- Header ----
         Label title = new Label("MEDIA");
         title.getStyleClass().add("section-title");
 
-        Button gridBtn = new Button("▦");
-        Button listBtn = new Button("≡");
+        Button gridBtn = new Button();
+        Button listBtn = new Button();
+        gridBtn.setGraphic(new FontIcon("fas-th"));
+        listBtn.setGraphic(new FontIcon("fas-list"));
         gridBtn.getStyleClass().addAll("btn", "icon-btn");
         listBtn.getStyleClass().addAll("btn", "icon-btn");
 
@@ -46,29 +49,35 @@ public class LibraryPane {
         HBox header = new HBox(8, title, spacer, gridBtn, listBtn);
         header.setAlignment(Pos.CENTER_LEFT);
 
-        // Search
+        // ---- Search ----
         search.setPromptText("Search media...");
         search.getStyleClass().add("search");
         search.setPrefWidth(280);
 
-        // Tabs row
+        // ---- Tabs ----
         HBox tabs = new HBox(6, all, video, audio, image);
         tabs.getStyleClass().add("tab-row");
 
-        // Dropzone
+        // ---- Drop zone ----
         dropzone.getStyleClass().add("dropzone");
         dropzone.setPrefHeight(86);
 
-        Label dz = new Label("Drop files or click to upload");
-        dz.getStyleClass().add("muted");
-        dropzone.getChildren().add(dz);
+        Label dzIcon = new Label();
+        dzIcon.setGraphic(new FontIcon("fas-cloud-upload-alt"));
+        dzIcon.getStyleClass().add("muted");
+        Label dzText = new Label("Drop files or click to upload");
+        dzText.getStyleClass().add("muted");
+
+        VBox dzContent = new VBox(6, dzIcon, dzText);
+        dzContent.setAlignment(Pos.CENTER);
+        dropzone.getChildren().add(dzContent);
         dropzone.setOnMouseClicked(e -> openFilePicker());
 
         VBox top = new VBox(10, header, search, tabs, dropzone);
         top.setPadding(new Insets(14, 12, 10, 12));
         root.setTop(top);
 
-        // List styling + behavior
+        // ---- List ----
         list.getStyleClass().add("dark-list");
         list.getSelectionModel().setSelectionMode(SelectionMode.MULTIPLE);
 
@@ -76,11 +85,8 @@ public class LibraryPane {
             ListCell<VideoAsset> cell = new ListCell<>() {
                 @Override protected void updateItem(VideoAsset item, boolean empty) {
                     super.updateItem(item, empty);
-                    if (empty || item == null) {
-                        setText(null);
-                    } else {
-                        setText(item.title() + "  •  " + item.prettyDuration());
-                    }
+                    setText((empty || item == null) ? null
+                            : item.title() + "  •  " + item.prettyDuration());
                 }
             };
 
@@ -106,7 +112,8 @@ public class LibraryPane {
         root.setCenter(list);
         BorderPane.setMargin(list, new Insets(0, 10, 10, 10));
 
-        // Bottom actions
+        // ---- Bottom bar ----
+        deleteBtn.setGraphic(new FontIcon("fas-trash-alt"));
         deleteBtn.getStyleClass().addAll("btn", "btn-secondary");
         deleteBtn.setOnAction(e -> deleteSelected());
 
@@ -114,12 +121,11 @@ public class LibraryPane {
         bottom.setPadding(new Insets(0, 12, 12, 12));
         root.setBottom(bottom);
 
-        // Drag-and-drop import from OS (whole sidebar)
+        // ---- OS drag-and-drop import ----
         root.setOnDragOver(e -> {
             if (e.getDragboard().hasFiles()) e.acceptTransferModes(TransferMode.COPY);
             e.consume();
         });
-
         root.setOnDragDropped(e -> {
             var files = e.getDragboard().getFiles();
             if (onImport != null && files != null && !files.isEmpty()) {
@@ -129,7 +135,7 @@ public class LibraryPane {
             e.consume();
         });
 
-        // Delete key support
+        // Delete key
         list.setOnKeyPressed(e -> {
             if (e.getCode() == KeyCode.DELETE) deleteSelected();
         });
@@ -157,19 +163,20 @@ public class LibraryPane {
         if (!ids.isEmpty()) onDeleteMany.onDelete(ids);
     }
 
-    // Callback wiring
-    public interface ImportHandler { void onImport(File[] files); }
-    public interface AddRequested { void onAdd(long assetId); }
+    // ---- Callback interfaces ----
+
+    public interface ImportHandler    { void onImport(File[] files); }
+    public interface AddRequested     { void onAdd(long assetId); }
     public interface DeleteManyHandler { void onDelete(List<Long> ids); }
 
-    private ImportHandler onImport;
-    private AddRequested onAddRequested;
+    private ImportHandler     onImport;
+    private AddRequested      onAddRequested;
     private DeleteManyHandler onDeleteMany;
 
-    public void setOnImport(ImportHandler handler) { this.onImport = handler; }
-    public void setOnAddRequested(AddRequested h) { this.onAddRequested = h; }
-    public void setOnDeleteMany(DeleteManyHandler h) { this.onDeleteMany = h; }
+    public void setOnImport(ImportHandler handler)      { this.onImport       = handler; }
+    public void setOnAddRequested(AddRequested h)       { this.onAddRequested = h; }
+    public void setOnDeleteMany(DeleteManyHandler h)    { this.onDeleteMany   = h; }
 
-    public BorderPane getRoot() { return root; }
-    public ListView<VideoAsset> list() { return list; }
+    public BorderPane getRoot()            { return root; }
+    public ListView<VideoAsset> list()     { return list; }
 }
