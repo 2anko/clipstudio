@@ -204,8 +204,49 @@ public class PreviewPane {
     }
 
     public void loadVideo(File file) {
+        loadVideo(file, 0);
+    }
+
+    /**
+     * Loads and immediately begins playing from initialMs.
+     * Unlike loadVideo(), this does NOT pause on the first playing event —
+     * it seeks to initialMs and keeps playing. Used when advancing between clips.
+     */
+    public void loadVideoAndPlay(File file, long initialMs) {
         currentFile = file;
-        desiredMs = 0;
+        desiredMs = initialMs;
+        mediaLengthMs = 1;
+
+        scrubRequestId.incrementAndGet();
+        scrubOverlay.setImage(null);
+        scrubOverlay.setVisible(false);
+
+        ensureVlc();
+
+        if (vlcPlayer != null) {
+            try { vlcPlayer.controls().stop(); } catch (Exception ignored) {}
+        }
+
+        progress.setDisable(false);
+        progress.setMin(0);
+        progress.setMax(Integer.MAX_VALUE);
+        progress.setValue(initialMs);
+
+        // Do NOT pause on first playing — seek to initialMs and keep playing.
+        pauseOnFirstPlaying = false;
+        seekOnNextPlayingEvent = initialMs;
+        keepPlayingAfterSeek = true;
+        hideScrubWhenNearMs = initialMs;
+
+        vlcPlayer.media().play(file.getAbsolutePath());
+
+        startUiTimer();
+        updateEmptyState();
+    }
+
+    public void loadVideo(File file, long initialMs) {
+        currentFile = file;
+        desiredMs = initialMs;
         mediaLengthMs = 1;
 
         // Invalidate any pending scrub frames
@@ -223,11 +264,11 @@ public class PreviewPane {
         progress.setDisable(false);
         progress.setMin(0);
         progress.setMax(Integer.MAX_VALUE); // real length set lazily once VLC reports it
-        progress.setValue(0);
+        progress.setValue(initialMs);
 
-        // "Start paused" on first frame
+        // "Start paused" at the correct initial position — NOT always at 0
         pauseOnFirstPlaying = true;
-        initialPauseMs = 0;
+        initialPauseMs = initialMs;
 
         // Reset play-seek state
         seekOnNextPlayingEvent = -1;
@@ -241,9 +282,9 @@ public class PreviewPane {
         // Restart the UI timer if it was stopped by a previous clear().
         startUiTimer();
 
-        // While we wait for VLC, show a frame via FFmpeg (fast user feedback)
+        // Show the correct frame immediately via FFmpeg while VLC warms up
         scrubOverlay.setVisible(true);
-        requestScrubFrame(0);
+        requestScrubFrame(initialMs);
 
         updateEmptyState();
     }

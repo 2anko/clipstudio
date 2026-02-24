@@ -156,20 +156,6 @@ public class FfmpegService {
         int tw = resolution.width();
         int th = resolution.height();
 
-        // Probe each segment's FPS and pick the most common one as the export target.
-        // The fps filter in each chain converts clips that differ, so concat always gets
-        // a consistent frame rate regardless of mixed-fps source material.
-        java.util.Map<Double, Long> fpsVotes = new java.util.LinkedHashMap<>();
-        for (Segment s : segs) {
-            double f = probeFps(s.input);
-            fpsVotes.merge(f, 1L, Long::sum);
-        }
-        double fps = fpsVotes.entrySet().stream()
-                .max(java.util.Map.Entry.comparingByValue())
-                .map(java.util.Map.Entry::getKey)
-                .orElse(30.0);
-        LOG.info("Export target FPS: {}", fps);
-
         StringBuilder fc = new StringBuilder();
         long totalDurationMs = 0;
 
@@ -182,13 +168,15 @@ public class FfmpegService {
             double endSec = s.endMs / 1000.0;
             double durSec  = durMs / 1000.0;
 
-            // Video chain — fps filter normalises each clip to the export target rate.
+            // Video chain — no fps filter so source fps is preserved.
+            // concat uses the first stream's fps; ffmpeg normalises mixed-fps inputs
+            // automatically without forcing an upconvert on every clip.
             fc.append(String.format(java.util.Locale.US,
                     "[%d:v]trim=start=%.6f:end=%.6f,setpts=PTS-STARTPTS," +
                             "scale=%d:%d:force_original_aspect_ratio=decrease," +
                             "pad=%d:%d:(ow-iw)/2:(oh-ih)/2,setsar=1," +
-                            "fps=fps=%.6f,format=yuv420p[v%d];",
-                    i, startSec, endSec, tw, th, tw, th, fps, i));
+                            "format=yuv420p[v%d];",
+                    i, startSec, endSec, tw, th, tw, th, i));
 
             // Audio chain — fall back to silence if the file has no audio stream.
             if (hasAudio(s.input)) {
@@ -230,10 +218,12 @@ public class FfmpegService {
         cmd.add("+faststart");
 
         if (hasNvenc()) {
-            cmd.addAll(List.of("-c:v", "h264_nvenc", "-preset", "p4", "-rc", "vbr", "-cq", "19", "-b:v", "0"));
+            // p5 does more compression work than p4; cq 23 ≈ visually transparent, much smaller than cq 19
+            cmd.addAll(List.of("-c:v", "h264_nvenc", "-preset", "p5", "-rc", "vbr", "-cq", "23", "-b:v", "0"));
             LOG.info("Export render uses NVENC (h264_nvenc)");
         } else {
-            cmd.addAll(List.of("-c:v", "libx264", "-preset", "veryfast", "-crf", "18"));
+            // "medium" compresses far better than "veryfast" at the same CRF; crf 22 is near-transparent
+            cmd.addAll(List.of("-c:v", "libx264", "-preset", "medium", "-crf", "22"));
             LOG.info("Export render uses CPU (libx264)");
         }
 

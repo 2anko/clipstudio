@@ -43,7 +43,7 @@ public class TimelinePane {
     private double pxPerSecond = BASE_PX_PER_SECOND;
 
     private static final double X0     = 10;
-    private static final double GAP_PX = 10;
+    private static final double GAP_PX = 2;
 
     private final Line    laneSep      = new Line(0, 70, 5000, 70);
     private final Polygon playheadTri  = new Polygon(0, 0, 10, 0, 5, 7);
@@ -215,7 +215,7 @@ public class TimelinePane {
 
         for (TimelineClip c : clips) {
             long   durMs = Math.max(0, c.endMs() - c.startMs());
-            double w     = Math.max(140, (durMs / 1000.0) * pxPerSecond);
+            double w     = Math.max(40, (durMs / 1000.0) * pxPerSecond);
 
             ClipNode node = new ClipNode(c, accTimelineMs, durMs);
             node.relocate(x, yVideo);

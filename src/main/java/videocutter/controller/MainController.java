@@ -77,10 +77,10 @@ public class MainController {
             long assetId = a.id();
             if (previewAssetId != assetId) {
                 previewAssetId = assetId;
-
-                // No preview proxies: VLC handles playback; FFmpeg handles frame-accurate scrubbing.
                 File media = repo.materializeToTemp(assetId);
-                view.preview().loadVideo(media);
+                // Pass sourceMs so VLC parks at the right frame on first load,
+                // not always at 0. seekWhenReady below handles same-asset seeks.
+                view.preview().loadVideo(media, sourceMs);
             }
 
             view.preview().setInfo(a.title() + " [" + a.prettyDuration() + "]");
@@ -98,6 +98,23 @@ public class MainController {
         view.preview().setOnTime(ms -> {
             if (selected == null) return;
             if (previewAssetId != selected.assetId()) return;
+
+            // Enforce the clip's end boundary during playback.
+            if (view.preview().isPlaying() && ms >= selected.endMs()) {
+                // Try to advance to the next clip on the timeline.
+                TimelineClip next = nextClip(selected);
+                if (next != null) {
+                    advanceToClip(next);
+                } else {
+                    // No next clip — park at the end.
+                    view.preview().pause();
+                    view.preview().seekWhenReady(selected.endMs());
+                    lastSourceMs = selected.endMs();
+                    view.timeline().setPlayheadTimelineMs(selectedSourceToTimelineMs(selected.endMs()));
+                }
+                return;
+            }
+
             lastSourceMs = ms;
             if (view.preview().isPlaying()) {
                 view.timeline().setPlayheadTimelineMs(selectedSourceToTimelineMs(ms));
@@ -189,6 +206,56 @@ public class MainController {
             view.timeline().setClips(project.clips());
             refreshLibrary();
         });
+    }
+
+    /** Returns the clip immediately after the given one on the timeline, or null if it's the last. */
+    private TimelineClip nextClip(TimelineClip clip) {
+        List<TimelineClip> clips = project.clips();
+        int idx = clips.indexOf(clip);
+        return (idx >= 0 && idx + 1 < clips.size()) ? clips.get(idx + 1) : null;
+    }
+
+    /**
+     * Computes the timeline start position (ms) of a clip by summing durations of all
+     * preceding clips. This mirrors how TimelinePane lays clips out.
+     */
+    private long timelineStartOf(TimelineClip clip) {
+        long acc = 0;
+        for (TimelineClip c : project.clips()) {
+            if (c == clip) return acc;
+            acc += Math.max(0, c.endMs() - c.startMs());
+        }
+        return acc;
+    }
+
+    /**
+     * Switches playback context to the given clip and begins playing from its startMs.
+     * Handles both same-asset and different-asset transitions seamlessly.
+     */
+    private void advanceToClip(TimelineClip clip) {
+        VideoAsset asset = repo.findById(clip.assetId());
+        if (asset == null) return;
+
+        selected = clip;
+        lastSourceMs = clip.startMs();
+        selectedTimelineStartMs = timelineStartOf(clip);
+
+        view.timeline().selectClip(clip);
+        view.timeline().setPlayheadTimelineMs(selectedTimelineStartMs);
+        view.preview().setInfo(asset.title() + " [" + asset.prettyDuration() + "]");
+
+        long assetId = asset.id();
+        if (previewAssetId != assetId) {
+            // Different source file — load and play from the clip's in-point atomically
+            // so the pauseOnFirstPlaying logic doesn't fight us.
+            previewAssetId = assetId;
+            File media = repo.materializeToTemp(assetId);
+            view.preview().loadVideoAndPlay(media, clip.startMs());
+        } else {
+            // Same source file — seek to the clip's in-point and resume.
+            view.preview().seekWhenReady(clip.startMs());
+            view.preview().play();
+        }
     }
 
     private long selectedSourceToTimelineMs(long sourceMs) {
