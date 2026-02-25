@@ -19,9 +19,11 @@ public class ProjectsView {
     private final ToggleButton done = pill("Done", false);
 
     private final Button newProject = new Button("+  New Project");
+    private final Button openProject = new Button("Open Project");
     private final TilePane grid = new TilePane();
 
     private Runnable onNewProject;
+    private Runnable onOpenProject;
 
     public ProjectsView() {
         root.getStyleClass().addAll("app-root", "projects-root");
@@ -55,7 +57,10 @@ public class ProjectsView {
         newProject.getStyleClass().addAll("btn", "btn-primary");
         newProject.setOnAction(e -> { if (onNewProject != null) onNewProject.run(); });
 
-        controls.getChildren().addAll(search, pills, spacer, newProject);
+        openProject.getStyleClass().addAll("btn", "btn-secondary");
+        openProject.setOnAction(e -> { if (onOpenProject != null) onOpenProject.run(); });
+
+        controls.getChildren().addAll(search, pills, spacer, openProject, newProject);
 
         root.setTop(new VBox(brandRow, controls));
 
@@ -75,6 +80,7 @@ public class ProjectsView {
     }
 
     public void setOnNewProject(Runnable r) { this.onNewProject = r; }
+    public void setOnOpenProject(Runnable r) { this.onOpenProject = r; }
 
     public BorderPane getRoot() { return root; }
 

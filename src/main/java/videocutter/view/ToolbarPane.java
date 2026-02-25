@@ -78,6 +78,7 @@ public class ToolbarPane {
     public Button refreshBtn() { return refreshBtn; }
     public Button removeBtn()  { return removeBtn; }
     public Button exportBtn()  { return exportBtn; }
+    public Button saveBtn()    { return saveBtn; }
 
     public void setProjectTitle(String name) { title.setText(name); }
 

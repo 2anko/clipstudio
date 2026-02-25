@@ -16,7 +16,10 @@ import videocutter.view.AppShell;
 import videocutter.view.MainView;
 import videocutter.view.ProjectsView;
 
+import java.io.File;
+import java.nio.file.Path;
 import java.sql.SQLException;
+import javafx.stage.FileChooser;
 
 public class Main extends Application {
     static {
@@ -41,13 +44,19 @@ public class Main extends Application {
         shell.showProjects(home);
 
         home.setOnNewProject(() -> {
-            Project project = new Project();
-            MainView editor = new MainView();
-            MainController controller = new MainController(editor, project, repo, new FfmpegService());
-            controller.init();
+            openEditor(shell, home, repo, new Project(), null);
+        });
 
-            editor.toolbar().backBtn().setOnAction(ev -> shell.showProjects(home));
-            shell.showEditor(editor);
+        home.setOnOpenProject(() -> {
+            FileChooser fc = new FileChooser();
+            fc.setTitle("Open Project");
+            fc.getExtensionFilters().add(
+                    new FileChooser.ExtensionFilter("FrameCut Project", "*.framecut"));
+            File f = fc.showOpenDialog(shell.getRoot().getScene().getWindow());
+            if (f == null) return;
+            Project project = new Project();
+            MainController controller = openEditor(shell, home, repo, project, f.toPath());
+            controller.loadFromFile(f.toPath());
         });
 
         Scene scene = new Scene(shell.getRoot(), 1280, 720);
@@ -61,6 +70,16 @@ public class Main extends Application {
         stage.setTitle("FrameCut");
         stage.setScene(scene);
         stage.show();
+    }
+
+    private static MainController openEditor(AppShell shell, ProjectsView home,
+                                             VideoRepository repo, Project project, Path saveFile) {
+        MainView editor = new MainView();
+        MainController controller = new MainController(editor, project, repo, new FfmpegService());
+        controller.init();
+        editor.toolbar().backBtn().setOnAction(ev -> shell.showProjects(home));
+        shell.showEditor(editor);
+        return controller;
     }
 
     public static void showAlert(String title, String message, Window owner) {

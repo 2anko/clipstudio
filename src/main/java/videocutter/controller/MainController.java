@@ -5,7 +5,10 @@ import javafx.collections.FXCollections;
 import javafx.concurrent.Task;
 import javafx.scene.control.Alert;
 import javafx.scene.control.ButtonType;
+import javafx.stage.FileChooser;
+import videocutter.app.Main;
 import videocutter.model.Project;
+import videocutter.model.ProjectSerializer;
 import videocutter.model.TimelineClip;
 import videocutter.model.VideoAsset;
 import videocutter.model.VideoRepository;
@@ -13,6 +16,7 @@ import videocutter.service.FfmpegService;
 import videocutter.view.MainView;
 
 import java.io.File;
+import java.nio.file.Path;
 import java.sql.SQLException;
 import java.util.HashSet;
 import java.util.List;
@@ -24,6 +28,7 @@ public class MainController {
     private final VideoRepository repo;
     private final FfmpegService ff;
     private long previewAssetId = -1;
+    private Path currentSaveFile = null; // null = not yet saved
     private TimelineClip selected;
     private long lastSourceMs = 0;
     private long selectedTimelineStartMs = 0;
@@ -65,6 +70,8 @@ public class MainController {
 
         refreshLibrary();
         view.toolbar().refreshBtn().setOnAction(e -> refreshLibrary());
+
+        view.toolbar().saveBtn().setOnAction(e -> saveProject());
 
         view.timeline().setOnScrub((clip, sourceMs, timelineMs) -> {
             selected = clip;
@@ -262,6 +269,59 @@ public class MainController {
         if (selected == null) return 0;
         long clamped = Math.max(selected.startMs(), Math.min(sourceMs, selected.endMs()));
         return selectedTimelineStartMs + (clamped - selected.startMs());
+    }
+
+    // ---- Save / Load ----
+
+    public void saveProject() {
+        if (currentSaveFile == null) {
+            FileChooser fc = new FileChooser();
+            fc.setTitle("Save Project");
+            fc.getExtensionFilters().add(
+                    new FileChooser.ExtensionFilter("FrameCut Project", "*.framecut"));
+            fc.setInitialFileName("project.framecut");
+            File f = fc.showSaveDialog(view.getRoot().getScene().getWindow());
+            if (f == null) return;
+            currentSaveFile = f.toPath();
+        }
+        try {
+            ProjectSerializer.save(project, currentSaveFile);
+            view.toolbar().setProjectTitle(currentSaveFile.getFileName().toString()
+                    .replace(".framecut", ""));
+        } catch (Exception ex) {
+            ex.printStackTrace();
+            Main.showAlert("Save Failed", ex.getMessage(),
+                    view.getRoot().getScene().getWindow());
+        }
+    }
+
+    public void saveProjectAs() {
+        currentSaveFile = null; // force file chooser
+        saveProject();
+    }
+
+    /** Loads clips from a .framecut file into the project and refreshes the timeline. */
+    public void loadFromFile(Path path) {
+        try {
+            var clips = ProjectSerializer.load(path);
+            project.clear();
+            for (var cd : clips) {
+                // Verify the asset still exists in the DB before adding
+                if (repo.findById(cd.assetId()) != null) {
+                    project.addClip(new videocutter.model.TimelineClip(
+                            cd.assetId(), cd.startMs(), cd.endMs()));
+                }
+            }
+            currentSaveFile = path;
+            view.toolbar().setProjectTitle(
+                    path.getFileName().toString().replace(".framecut", ""));
+            view.timeline().setClips(project.clips());
+            refreshLibrary();
+        } catch (Exception ex) {
+            ex.printStackTrace();
+            Main.showAlert("Open Failed", ex.getMessage(),
+                    view.getRoot().getScene().getWindow());
+        }
     }
 
     private void refreshLibrary() {

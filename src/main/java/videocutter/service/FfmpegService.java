@@ -164,9 +164,12 @@ public class FfmpegService {
             long durMs = Math.max(0, s.endMs - s.startMs);
             totalDurationMs += durMs;
 
-            double startSec = s.startMs / 1000.0;
-            double endSec = s.endMs / 1000.0;
-            double durSec  = durMs / 1000.0;
+            // The input is pre-seeked to (startSec - 4s), so trim timestamps must be
+            // relative to that seek point, not to the original file start.
+            double preSec    = Math.max(0.0, s.startMs / 1000.0 - 4.0);
+            double startSec  = s.startMs / 1000.0 - preSec;
+            double endSec    = s.endMs   / 1000.0 - preSec;
+            double durSec    = durMs / 1000.0;
 
             // Video chain — no fps filter so source fps is preserved.
             // concat uses the first stream's fps; ffmpeg normalises mixed-fps inputs
@@ -202,8 +205,13 @@ public class FfmpegService {
         cmd.add("-y");
         cmd.add("-hide_banner");
 
-        // Inputs
+        // Inputs — use input-side seeking (-ss before -i) so FFmpeg jumps to a keyframe
+        // near the trim point instead of decoding the entire file from frame 0.
+        // The trim filter then handles frame-accurate cutting within the small decoded window.
         for (Segment s : segs) {
+            double preSec = Math.max(0.0, s.startMs / 1000.0 - 4.0);
+            cmd.add("-ss");
+            cmd.add(String.format(java.util.Locale.US, "%.3f", preSec));
             cmd.add("-i");
             cmd.add(s.input.toString());
         }
@@ -266,13 +274,35 @@ public class FfmpegService {
         }
 
         LOG.info("Executing FFmpeg: {}", String.join(" ", cmd));
-        Process p = new ProcessBuilder(cmd).redirectErrorStream(true).start();
 
-        StringBuilder ffmpegOutput = new StringBuilder();
-        try (BufferedReader reader = new BufferedReader(new InputStreamReader(p.getInputStream(), StandardCharsets.UTF_8))) {
+        // Do NOT use redirectErrorStream — keep stdout and stderr as separate pipes.
+        // With -progress pipe:1, progress lines go to stdout and FFmpeg's verbose
+        // encoder/muxer logs go to stderr. If both are merged into one stream and the
+        // pipe buffer fills (common with NVENC + many inputs), both sides deadlock.
+        Process p = new ProcessBuilder(cmd).start();
+
+        // Drain stderr on a dedicated daemon thread so it never blocks the process.
+        // Accumulate it so we can include it in error messages if the exit code is non-zero.
+        StringBuilder stderrCapture = new StringBuilder();
+        Thread stderrThread = new Thread(() -> {
+            try (BufferedReader r = new BufferedReader(
+                    new InputStreamReader(p.getErrorStream(), StandardCharsets.UTF_8))) {
+                String line;
+                while ((line = r.readLine()) != null) {
+                    stderrCapture.append(line).append(System.lineSeparator());
+                }
+            } catch (IOException ignored) {}
+        }, "ffmpeg-stderr-drain");
+        stderrThread.setDaemon(true);
+        stderrThread.start();
+
+        // Read stdout (progress lines) on the calling thread.
+        StringBuilder stdoutCapture = new StringBuilder();
+        try (BufferedReader reader = new BufferedReader(
+                new InputStreamReader(p.getInputStream(), StandardCharsets.UTF_8))) {
             String line;
             while ((line = reader.readLine()) != null) {
-                ffmpegOutput.append(line).append(System.lineSeparator());
+                stdoutCapture.append(line).append(System.lineSeparator());
                 if (progress != null) {
                     progress.parseLine(line);
                 }
@@ -280,9 +310,11 @@ public class FfmpegService {
         }
 
         try {
+            stderrThread.join(5_000); // give stderr thread a moment to finish
             int exitCode = p.waitFor();
             if (exitCode != 0) {
-                throw new IOException("ffmpeg failed with exit code " + exitCode + ":\n" + ffmpegOutput);
+                throw new IOException("ffmpeg failed with exit code " + exitCode
+                        + ":\n" + stderrCapture);
             }
             if (progress != null) {
                 progress.onDone();
